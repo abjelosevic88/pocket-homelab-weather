@@ -26,7 +26,7 @@ jobs:
           DATA_DIR=/tmp/pwx DEMO_DATA=true AUTH_MODE=none ./pocket-weather &
           sleep 2
           curl -fsS http://localhost:8080/healthz
-          curl -fsS http://localhost:8080/api/v1/overview | grep -q '"upcoming"'
+          curl -fsS http://localhost:8080/api/v1/overview | grep -q '"places"'
           curl -fsS http://localhost:8080/api/v1/locations | grep -q 'Sarajevo'
           curl -fsS http://localhost:8080/api/v1/summary | grep -q '"today"'
           curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
