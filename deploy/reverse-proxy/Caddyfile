@@ -1,0 +1,5 @@
+# Pocket Weather behind Caddy. Homepage widgets and linked apps send their own
+# bearer token to /api/*.
+places.example.com {
+	reverse_proxy pocket-weather:8080
+}

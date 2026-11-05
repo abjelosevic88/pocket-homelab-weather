@@ -1,0 +1,23 @@
+[Unit]
+Description=Pocket Weather — the weather for your places
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pocket-weather
+Group=pocket-weather
+ExecStart=/usr/local/bin/pocket-weather
+Environment=DATA_DIR=/var/lib/pocket-weather
+Environment=PORT=8080
+Environment=BASE_URL=https://weather.example.com
+Environment=SECURE_COOKIES=true
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pocket-weather
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
