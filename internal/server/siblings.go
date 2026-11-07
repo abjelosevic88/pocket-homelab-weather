@@ -29,6 +29,7 @@ const (
 	scopeVehiclesRead = "vehicles:read"
 	scopePetsRead     = "pets:read"
 	scopeMovementRead = "movement:read"
+	scopeLeagueRead   = "league:read"
 	scopeTasksWrite   = "tasks:write"
 )
 
@@ -45,9 +46,10 @@ var (
 	appHome     = pocketApp{"home", "Pocket Home", []string{scopeHomeRead}, "Tell you when your balcony and garden plants need to come in for a frost night, more water in the heat or the pots secured before a storm"}
 	appGarage   = pocketApp{"garage", "Pocket Garage", []string{scopeVehiclesRead}, "Say when it is time for winter or summer tyres (unless a tyre change is already in your records) and when the windscreen will be frozen"}
 	appPets     = pocketApp{"pets", "Pocket Pets", []string{scopePetsRead}, "Suggest the best time to walk your dog, and early or late walks in the heat, short ones in the cold and staying in during thunder"}
+	appLeague   = pocketApp{"league", "Pocket League", []string{scopeLeagueRead}, "Show the weather your coming games will get at their venue, and warn you about rain, wind or heat at the time of an outdoor game"}
 	appMovement = pocketApp{"movement", "Pocket Movement", []string{scopeMovementRead}, "Show the weather where you are now when you are away from your saved places (only your latest position is read)"}
 	appTasks    = pocketApp{"tasks", "Pocket Tasks", []string{scopeTasksWrite}, "Make a piece of advice (\"switch to winter tyres\", \"bring the plants in\") into a task when you tap Add as a task"}
-	pocketApps  = []pocketApp{appCalendar, appTravel, appHome, appGarage, appPets, appMovement, appTasks}
+	pocketApps  = []pocketApp{appCalendar, appTravel, appHome, appGarage, appPets, appLeague, appMovement, appTasks}
 )
 
 func appBySlug(slug string) (pocketApp, bool) {

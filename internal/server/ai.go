@@ -125,6 +125,16 @@ func (s *Server) weatherFacts(ctx context.Context, uid int64, st store.Settings,
 					fmt.Fprintf(&b, "- %s %s at %s: %s, %s, rain chance %.0f %%\n", e.Start, e.Title, e.Place, weather.Describe(e.Code, true), u.temp(val0(e.Temp)), val0(e.Prob))
 				}
 			}
+			if len(p.Games) > 0 {
+				b.WriteString("Their coming games:\n")
+				for _, e := range p.Games {
+					where := e.Place
+					if e.Indoor {
+						where += " (indoors)"
+					}
+					fmt.Fprintf(&b, "- %s %s at %s: %s, %s, rain chance %.0f %%; %s\n", e.Start, e.Title, where, weather.Describe(e.Code, true), u.temp(val0(e.Temp)), val0(e.Prob), e.Players)
+				}
+			}
 			for _, t := range p.Trips {
 				fmt.Fprintf(&b, "Trip %s to %s, %s to %s: %s\n", t.Name, t.Place, t.Start, t.End, t.Summary)
 			}

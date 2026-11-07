@@ -26,4 +26,4 @@ Commands: `pocket-weather backup [-o FILE]`, `pocket-weather reset-password [-em
 
 Forecasts come from [Open-Meteo](https://open-meteo.com) (free, no key, CC BY 4.0) and are cached by spot: 20 minutes for the forecast, an hour for air quality and pollen. Place names for "where am I" come from OpenStreetMap Nominatim.
 
-Connections to Pocket Calendar, Travel, Home, Garage, Pets, Movement and Tasks are made per person under Settings → Connected apps: through Pocket Core (nothing to paste) or directly with the app's URL and an API token.
+Connections to Pocket Calendar, Travel, Home, Garage, Pets, League, Movement and Tasks are made per person under Settings → Connected apps: through Pocket Core (nothing to paste) or directly with the app's URL and an API token.

@@ -92,13 +92,13 @@ function Shell() {
     { id: 'add', label: 'Add a place', icon: 'plus', hint: 'A', keywords: 'new city town location search', run: add },
     { id: 'today', label: 'Today', icon: 'sun', hint: 'T', keywords: 'now forecast home hourly', run: () => navigate('/') },
     { id: 'warnings', label: 'Warnings', icon: 'alert', hint: 'W', keywords: 'frost storm rain heat wind snow uv pollen air', run: () => navigate('/warnings') },
-    { id: 'plans', label: 'For your plans', icon: 'calendar-check', hint: 'P', keywords: 'events trips plants tyres dog walk calendar travel garage home pets', run: () => navigate('/plans') },
+    { id: 'plans', label: 'For your plans', icon: 'calendar-check', hint: 'P', keywords: 'events games trips plants tyres dog walk calendar league travel garage home pets', run: () => navigate('/plans') },
     { id: 'diary', label: 'Diary', icon: 'journal', hint: 'D', keywords: 'history past last year month log', run: () => navigate('/diary') },
     { id: 'places', label: 'Places', icon: 'pin', hint: 'L', keywords: 'locations cities home', run: () => navigate('/places') },
     { id: 'settings', label: 'Settings', icon: 'settings', hint: ',', run: () => navigate('/settings') },
     { id: 'units', label: 'Settings: units', icon: 'thermometer', keywords: 'celsius fahrenheit wind mph km/h mm inches', run: () => navigate('/settings') },
     { id: 'rules', label: 'Settings: warnings', icon: 'bell', keywords: 'thresholds push notifications frost heat pollen', run: () => navigate('/settings/warnings') },
-    { id: 'apps', label: 'Settings: connected apps', icon: 'layers', keywords: 'calendar travel home garage pets movement tasks core', run: () => navigate('/settings/apps') },
+    { id: 'apps', label: 'Settings: connected apps', icon: 'layers', keywords: 'calendar travel home garage pets league movement tasks core', run: () => navigate('/settings/apps') },
     { id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', hint: '?', run: () => setShortcuts(true) },
   ]
 

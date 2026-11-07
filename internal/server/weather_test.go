@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -278,6 +279,33 @@ func TestDemoPlans(t *testing.T) {
 	}
 	if evs, _ := p["events"].([]any); len(evs) == 0 {
 		t.Error("the demo calendar has events")
+	}
+	// Pocket League: the two games with a time (the one put to a vote is left
+	// out), the tennis at its venue, the futsal in a hall without warnings
+	games, _ := p["games"].([]any)
+	if len(games) != 2 {
+		t.Fatalf("demo games: %v", p["games"])
+	}
+	for _, x := range games {
+		g := x.(map[string]any)
+		switch g["id"] {
+		case "game:31":
+			if g["place"] != "TK Koševo" || g["indoor"] == true || !strings.Contains(fmt.Sprint(g["players"]), "3 in, 4 needed") {
+				t.Errorf("tennis: %v", g)
+			}
+		case "game:32":
+			if g["indoor"] != true || len(g["flags"].([]any)) != 0 || !strings.Contains(fmt.Sprint(g["players"]), "you: in") {
+				t.Errorf("futsal: %v", g)
+			}
+		default:
+			t.Errorf("unexpected game %v", g)
+		}
+	}
+	if la, _ := p["apps"].(map[string]any)["league"].(map[string]any); la["on"] != true || la["count"] != float64(2) {
+		t.Errorf("league app state: %v", la)
+	}
+	if !strings.Contains(fmt.Sprint(linkUses()), "league [league:read]") {
+		t.Errorf("Weather does not ask for league:read: %v", linkUses())
 	}
 	if key == "" {
 		t.Fatalf("no tyre advice with a task in %s (month %s)", p["advice"], time.Now().Month())

@@ -3,7 +3,7 @@ export interface APIToken { id: number; user_id: number; name: string; prefix: s
 
 export type ConnMode = 'core' | 'direct' | 'off'
 export type ConnVia = '' | 'core' | 'direct'
-export type AppSlug = 'calendar' | 'travel' | 'home' | 'garage' | 'pets' | 'movement' | 'tasks'
+export type AppSlug = 'calendar' | 'travel' | 'home' | 'garage' | 'pets' | 'league' | 'movement' | 'tasks'
 
 type ConnFields = { [K in AppSlug as `${K}_mode`]: ConnMode } & { [K in AppSlug as `${K}_via`]: ConnVia } & { [K in AppSlug as `${K}_detail` | `${K}_url` | `${K}_token` | `${K}_public_url` | `${K}_open_url`]: string } & { [K in AppSlug as `${K}_configured`]: boolean }
 
@@ -23,7 +23,7 @@ export type Settings = ConnFields & {
   warn_air: boolean; aqi_max: number
   notify_morning: boolean; notify_warnings: boolean; quiet_hours: boolean; notify_hour: number
   notify_url: string; notify_format: string; notify_configured: boolean
-  calendar_weather: boolean; travel_weather: boolean; home_plants: boolean; garage_tyres: boolean; pets_walks: boolean
+  calendar_weather: boolean; travel_weather: boolean; home_plants: boolean; garage_tyres: boolean; pets_walks: boolean; league_weather: boolean
   ai_brief: boolean
   ai_provider: 'auto' | 'pocket' | 'openai'; ai_pocket_model: string; openai_api_key: string; openai_model: string; openai_base_url: string
   setup_complete: boolean; base_url: string
@@ -82,10 +82,11 @@ export interface PlanEvent {
   id: string; title: string; start: string; end: string; all_day: boolean; location: string; place: string
   code: number; condition: Condition; temp: number | null; t_min?: number | null; t_max?: number | null
   precip_prob: number | null; gust: number | null; flags: string[]; note: string; link?: string
+  players?: string; indoor?: boolean
 }
 export interface PlanTrip { id: number; name: string; destination: string; start_date: string; end_date: string; place: string; lat: number; lon: number; days: Day[]; last_year: Day[]; summary: string; link?: string }
 export interface AppState { on: boolean; connected: boolean; detail?: string; count: number; open_url?: string }
-export interface Plans { place: string; events: PlanEvent[]; trips: PlanTrip[]; advice: Advice[]; apps: Record<string, AppState>; demo?: boolean }
+export interface Plans { place: string; events: PlanEvent[]; games?: PlanEvent[]; trips: PlanTrip[]; advice: Advice[]; apps: Record<string, AppState>; demo?: boolean }
 
 export interface DayRecord {
   location_id: number; date: string; code: number; t_min: number | null; t_max: number | null; precip: number | null; snow: number | null

@@ -162,6 +162,7 @@ type Settings struct {
 	HomePlants      bool `json:"home_plants"`      // outdoor plants: frost, heat, storms
 	GarageTyres     bool `json:"garage_tyres"`     // winter and summer tyres, frost on the windscreen
 	PetsWalks       bool `json:"pets_walks"`       // dog walks in heat, frost and thunder
+	LeagueWeather   bool `json:"league_weather"`   // your coming games with the weather at the venue
 
 	// AI: the day in plain words and questions about the forecast.
 	AIBrief bool `json:"ai_brief"` // write "the day in plain words" on the Today page

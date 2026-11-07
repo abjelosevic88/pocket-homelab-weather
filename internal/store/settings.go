@@ -20,7 +20,7 @@ func (s *Store) defaults() Settings {
 		WarnSnow: true, SnowCm: 5, WarnStorm: true, WarnUV: true, UVMax: 8, WarnPollen: false, PollenKinds: []string{"grass", "birch", "ragweed"}, PollenLevel: "high",
 		WarnAir: true, AQIMax: 80,
 		NotifyMorning: true, NotifyWarnings: true, QuietHours: true, NotifyHour: s.NotifyHour, NotifyFormat: "apprise",
-		CalendarWeather: true, TravelWeather: true, HomePlants: true, GarageTyres: true, PetsWalks: true, AIBrief: true,
+		CalendarWeather: true, TravelWeather: true, HomePlants: true, GarageTyres: true, PetsWalks: true, LeagueWeather: true, AIBrief: true,
 		Conns: map[string]Conn{}, AIProvider: "auto"}
 }
 

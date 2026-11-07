@@ -16,7 +16,7 @@ Everything is under `/api/v1`, JSON in and out, with a session cookie, a persona
 | `GET /locations`, `GET /locations/{id}` | your places |
 | `GET /search?q=Mostar` | find places by name |
 | `GET /reverse?lat=&lon=` | name a spot |
-| `GET /plans[?fresh=1]` | your next days' events with their weather, your trips, and advice from the linked apps (plants, tyres, dog walks) |
+| `GET /plans[?fresh=1]` | your next days' events with their weather, your coming games (Pocket League) at their venue, your trips, and advice from the linked apps (plants, tyres, dog walks) |
 
 ## Changing
 

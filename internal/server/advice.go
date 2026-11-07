@@ -19,14 +19,15 @@ import (
 // Your events of the next three days with the weather they get (Pocket
 // Calendar), the forecast for your coming trips (Pocket Travel), and advice
 // for what lives in the other apps: outdoor plants (Pocket Home), tyres and
-// the windscreen (Pocket Garage), dog walks (Pocket Pets). Everything is
-// worked out from the home forecast unless an event or trip says where it
-// is. Read on request and kept ten minutes per person.
+// the windscreen (Pocket Garage), dog walks (Pocket Pets), and your coming
+// games at their venue (Pocket League). Everything is worked out from the
+// home forecast unless an event, game or trip says where it is. Read on
+// request and kept ten minutes per person.
 
 // Advice is one thing to do because of the weather.
 type Advice struct {
 	Key    string     `json:"key"` // stable, for done / hide / task
-	App    string     `json:"app"` // calendar | travel | home | garage | pets | weather
+	App    string     `json:"app"` // calendar | travel | home | garage | pets | league | weather
 	Icon   string     `json:"icon"`
 	Level  string     `json:"level"` // info | warn
 	Day    string     `json:"day"`
@@ -62,6 +63,9 @@ type PlanEvent struct {
 	Flags    []string `json:"flags"` // rain | storm | wind | heat | cold | snow
 	Note     string   `json:"note"`
 	Link     string   `json:"link,omitempty"`
+	// a game from Pocket League
+	Players string `json:"players,omitempty"` // "3 in, 4 needed · you: in"
+	Indoor  bool   `json:"indoor,omitempty"`  // played inside: the weather is only for getting there
 }
 
 // PlanTrip is a coming trip with its forecast (or last year's weather).
@@ -93,6 +97,7 @@ type AppState struct {
 type Plans struct {
 	Place  string              `json:"place"`
 	Events []PlanEvent         `json:"events"`
+	Games  []PlanEvent         `json:"games"`
 	Trips  []PlanTrip          `json:"trips"`
 	Advice []Advice            `json:"advice"`
 	Apps   map[string]AppState `json:"apps"`
@@ -139,14 +144,14 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 	st, _ := s.store.GetSettings(ctx, uid)
 	home, err := s.store.HomeLocation(ctx, uid)
 	if err != nil {
-		return &Plans{Events: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}}, nil
+		return &Plans{Events: []PlanEvent{}, Games: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}}, nil
 	}
 	f, _, err := s.forecastOf(ctx, home)
 	if err != nil {
 		return nil, err
 	}
 	src := s.planSource(ctx, uid)
-	p := &Plans{Place: home.Name, Events: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}, Demo: src.demo}
+	p := &Plans{Place: home.Name, Events: []PlanEvent{}, Games: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}, Demo: src.demo}
 	u := unitsOf(st)
 	today := f.LocalDate()
 
@@ -249,6 +254,28 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 		state(appPets, false, 0, nil)
 	}
 
+	// Pocket League: the coming games of the next week at their venue
+	if st.LeagueWeather {
+		games, outdoor, err := src.games(ctx)
+		n := 0
+		for _, g := range games {
+			pe := s.planGame(ctx, st, home, f, g, outdoor, today, u, s.siblingLink(ctx, uid, appLeague, fmt.Sprintf("/games/%d", g.ID)))
+			if pe == nil {
+				continue
+			}
+			n++
+			p.Games = append(p.Games, *pe)
+			if len(pe.Flags) > 0 && pe.Note != "" && g.MyAnswer != "out" {
+				day := pe.Start[:min(10, len(pe.Start))]
+				p.Advice = append(p.Advice, Advice{Key: fmt.Sprintf("game:%d:%s", g.ID, day), App: "league", Icon: "trophy", Level: "warn", Day: day,
+					Title: pe.Title + ", " + dayName(day, today) + whenClock(pe), Detail: pe.Note, Link: pe.Link})
+			}
+		}
+		state(appLeague, true, n, err)
+	} else {
+		state(appLeague, false, 0, nil)
+	}
+
 	// Pocket Movement and Tasks: only whether they answer
 	mv, _, mvDetail := s.connStatus(ctx, s.userOf(ctx, uid), st, appMovement)
 	p.Apps["movement"] = AppState{On: st.FollowMe, Connected: mv != modeOff && mvDetail == "", Detail: mvDetail}
@@ -262,6 +289,7 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 		return p.Advice[a].Level == "warn" && p.Advice[b].Level != "warn"
 	})
 	sort.SliceStable(p.Events, func(a, b int) bool { return p.Events[a].Start < p.Events[b].Start })
+	sort.SliceStable(p.Games, func(a, b int) bool { return p.Games[a].Start < p.Games[b].Start })
 	return p, nil
 }
 
@@ -287,6 +315,9 @@ type planSource struct {
 	plants   func(ctx context.Context) ([]pocket.Plant, error)
 	vehicles func(ctx context.Context) ([]carInfo, error)
 	pets     func(ctx context.Context) ([]pocket.Pet, error)
+	// games are the coming games; outdoor says per group whether it plays
+	// outside (a group not in it counts as outside)
+	games func(ctx context.Context) (games []pocket.Game, outdoor map[int64]bool, err error)
 }
 
 // carInfo is a vehicle with when its tyres were last changed.
@@ -362,6 +393,23 @@ func (s *Server) planSource(ctx context.Context, uid int64) planSource {
 			}
 			return cl.Pets(ctx)
 		},
+		games: func(ctx context.Context) ([]pocket.Game, map[int64]bool, error) {
+			cl, err := conn(appLeague, scopeLeagueRead)
+			if err != nil {
+				return nil, nil, err
+			}
+			gs, err := cl.Upcoming(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			outdoor := map[int64]bool{}
+			if groups, err := cl.LeagueGroups(ctx); err == nil {
+				for _, g := range groups {
+					outdoor[g.ID] = g.Outdoor
+				}
+			}
+			return gs, outdoor, nil
+		},
 	}
 }
 
@@ -386,6 +434,14 @@ func (s *Server) planEvent(ctx context.Context, uid int64, st store.Settings, ho
 			}
 		}
 	}
+	return eventWeather(f, place, e, st, u)
+}
+
+// eventWeather is the weather an event gets from forecast f (for place):
+// at its start and the hours it lasts for a timed event, the day for an
+// all-day one, with flags and a note when it will rain, storm, blow or be
+// very hot or cold then.
+func eventWeather(f *weather.Forecast, place string, e pocket.Event, st store.Settings, u units) *PlanEvent {
 	pe := &PlanEvent{ID: e.ID, Title: firstNonEmpty(e.Title, "(no title)"), AllDay: e.AllDay, Location: e.Location, Place: place, Flags: []string{}}
 	loc := f.Location()
 	if e.AllDay || len(e.Start) == 10 {
@@ -545,6 +601,69 @@ func isCountry(s string) bool {
 		return true
 	}
 	return false
+}
+
+// ---- games ----
+
+// planGame puts the weather on one coming game from Pocket League, within
+// the next week: at the venue when the game says where it is on the map,
+// else at home; at its start and the hours it lasts. Games put to a vote
+// (no time yet), cancelled or over are left out. An indoor game keeps its
+// weather (for getting there) without warnings.
+func (s *Server) planGame(ctx context.Context, st store.Settings, home *store.Location, hf *weather.Forecast, g pocket.Game, outdoor map[int64]bool, today string, u units, link string) *PlanEvent {
+	if len(g.StartsAt) < 16 || g.Ended || g.Status == "cancelled" || g.Status == "voting" {
+		return nil
+	}
+	if d := g.StartsAt[:10]; d < today || d > store.AddDays(today, 7) {
+		return nil
+	}
+	f, place := hf, home.Name
+	if g.VenueLat != nil && g.VenueLon != nil && (*g.VenueLat != 0 || *g.VenueLon != 0) {
+		if gf, _, err := s.forecastAt(ctx, *g.VenueLat, *g.VenueLon); err == nil {
+			f, place = gf, firstNonEmpty(g.VenueName, home.Name)
+		}
+	}
+	start, err := time.ParseInLocation("2006-01-02T15:04", g.StartsAt[:16], f.Location())
+	if err != nil {
+		return nil
+	}
+	mins := g.DurationMin
+	if mins <= 0 {
+		mins = 90
+	}
+	title := strings.TrimSpace(g.Emoji + " " + firstNonEmpty(g.Title, g.GroupName, "Game"))
+	e := pocket.Event{ID: fmt.Sprintf("game:%d", g.ID), Title: title, Location: firstNonEmpty(g.VenueName, g.VenueAddr),
+		Start: start.Format(time.RFC3339), End: start.Add(time.Duration(mins) * time.Minute).Format(time.RFC3339)}
+	if f.HourAt(start.Format("2006-01-02T15:04")) == nil {
+		// further ahead than the hours: the day's weather
+		e.AllDay, e.Start, e.End = true, start.Format("2006-01-02"), start.AddDate(0, 0, 1).Format("2006-01-02")
+	}
+	pe := eventWeather(f, place, e, st, u)
+	if pe == nil {
+		return nil
+	}
+	if e.AllDay {
+		pe.AllDay, pe.Start = false, start.Format("2006-01-02T15:04") // still at its time
+	}
+	pe.Link = link
+	pe.Players = gamePlayers(g)
+	if out, ok := outdoor[g.GroupID]; ok && !out {
+		pe.Indoor, pe.Flags, pe.Note = true, []string{}, ""
+	}
+	return pe
+}
+
+// gamePlayers is who is coming: "3 in, 4 needed · you: not answered yet".
+func gamePlayers(g pocket.Game) string {
+	who := fmt.Sprintf("%d in", g.In)
+	if g.MinPlayers > g.In {
+		who += fmt.Sprintf(", %d needed", g.MinPlayers)
+	}
+	switch g.MyAnswer {
+	case "in", "maybe", "out":
+		return who + " · you: " + g.MyAnswer
+	}
+	return who + " · you: not answered yet"
 }
 
 // ---- trips ----
@@ -915,7 +1034,8 @@ func dogAdvice(dogs []pocket.Pet, f *weather.Forecast, today string, u units, li
 
 // demoPlanSource makes up the linked apps for DEMO_DATA (no Pocket Core):
 // a dentist and a football match, a trip to Vienna, two balcony plants, a
-// car without winter tyres and a dog — so the Plans page can be seen.
+// car without winter tyres, a dog and two games (tennis outside, futsal in
+// a hall) — so the Plans page can be seen.
 func demoPlanSource() planSource {
 	now := time.Now()
 	day := func(n int, hh, mm int) time.Time {
@@ -953,6 +1073,15 @@ func demoPlanSource() planSource {
 		},
 		pets: func(context.Context) ([]pocket.Pet, error) {
 			return []pocket.Pet{{ID: 1, Name: "Rex", Species: "dog"}, {ID: 2, Name: "Mici", Species: "cat"}}, nil
+		},
+		games: func(context.Context) ([]pocket.Game, map[int64]bool, error) {
+			lat, lon := 43.8737, 18.4093
+			at := func(n, hh int) string { return day(n, hh, 0).Format("2006-01-02T15:04") }
+			return []pocket.Game{
+				{ID: 31, GroupID: 1, GroupName: "Tuesday Tennis", Emoji: "🎾", Status: "planned", StartsAt: at(1, 20), DurationMin: 120, VenueName: "TK Koševo", VenueLat: &lat, VenueLon: &lon, In: 3, MinPlayers: 4},
+				{ID: 32, GroupID: 2, GroupName: "Friday 5-a-side", Emoji: "⚽", Status: "planned", StartsAt: at(4, 19), DurationMin: 60, VenueName: "Dvorana Mojmilo", In: 8, MinPlayers: 10, MyAnswer: "in"},
+				{ID: 33, GroupID: 3, GroupName: "Padel crew", Emoji: "🎾", Status: "voting"},
+			}, map[int64]bool{1: true, 2: false}, nil
 		},
 	}
 }

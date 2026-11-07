@@ -1,6 +1,7 @@
 // Package pocket talks to sibling Pocket apps: Pocket Travel (trips),
 // Pocket Calendar (events), Pocket Home (outdoor plants), Pocket Garage
-// (vehicles and tyre changes), Pocket Pets (dogs to walk), Pocket Movement
+// (vehicles and tyre changes), Pocket Pets (dogs to walk), Pocket League
+// (the coming games and where they are played), Pocket Movement
 // (where you are now) and Pocket Tasks (advice made into a task). Same
 // bearer-token JSON API everywhere.
 package pocket
@@ -231,6 +232,55 @@ func (c *Client) Events(ctx context.Context, from, to string) ([]Event, error) {
 		return nil, err
 	}
 	return list[Event](raw, "events")
+}
+
+// ---------------- Pocket League ----------------
+
+// Game is one coming game in Pocket League. StartsAt is the wall-clock time
+// at the venue ("2026-11-10T20:00"), empty while the time is put to a vote.
+type Game struct {
+	ID          int64    `json:"id"`
+	GroupID     int64    `json:"group_id"`
+	GroupName   string   `json:"group_name"`
+	Emoji       string   `json:"emoji"`
+	Sport       string   `json:"sport"`
+	Title       string   `json:"title"`
+	Status      string   `json:"status"` // planned | voting | cancelled
+	StartsAt    string   `json:"starts_at"`
+	DurationMin int      `json:"duration_min"`
+	VenueName   string   `json:"venue_name"`
+	VenueAddr   string   `json:"venue_address"`
+	VenueLat    *float64 `json:"venue_lat"`
+	VenueLon    *float64 `json:"venue_lon"`
+	In          int      `json:"in"`
+	MinPlayers  int      `json:"min_players"`
+	MyAnswer    string   `json:"my_answer"` // in | maybe | out | ""
+	Ended       bool     `json:"ended"`
+}
+
+// LeagueGroup is a group in Pocket League; Outdoor says whether it plays outside.
+type LeagueGroup struct {
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	Outdoor bool   `json:"outdoor"`
+}
+
+// Upcoming lists the person's coming games.
+func (c *Client) Upcoming(ctx context.Context) ([]Game, error) {
+	var raw json.RawMessage
+	if err := c.do(ctx, http.MethodGet, "/api/v1/upcoming", nil, nil, &raw); err != nil {
+		return nil, err
+	}
+	return list[Game](raw, "games")
+}
+
+// LeagueGroups lists the person's groups in Pocket League.
+func (c *Client) LeagueGroups(ctx context.Context) ([]LeagueGroup, error) {
+	var raw json.RawMessage
+	if err := c.do(ctx, http.MethodGet, "/api/v1/groups", nil, nil, &raw); err != nil {
+		return nil, err
+	}
+	return list[LeagueGroup](raw, "groups")
 }
 
 // ---------------- Pocket Home ----------------

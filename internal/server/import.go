@@ -145,6 +145,12 @@ func (s *Server) testDetail(ctx context.Context, a pocketApp, conn *siblingConn)
 		} else {
 			return ", but reading pets failed: " + err.Error()
 		}
+	case "league":
+		if gs, err := cl.Upcoming(ctx); err == nil {
+			return fmt.Sprintf(", %d coming %s", len(gs), plural(len(gs), "game", "games"))
+		} else {
+			return ", but reading your games failed: " + err.Error()
+		}
 	case "movement":
 		if p, err := cl.Now(ctx); err == nil {
 			if p == nil {
