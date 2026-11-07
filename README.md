@@ -72,11 +72,12 @@ Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Weather joins the box: people sig
 | Pocket Garage | time for winter or summer tyres (unless a tyre change is in your records), a frozen windscreen tomorrow | `vehicles:read` |
 | Pocket Pets | the best hour to walk the dog, early and late walks in heat, short ones in the cold, thunder coming | `pets:read` |
 | Pocket League | your coming games of the next week with the weather at the venue (else at home) at their time; rain, wind, storms or heat at an outdoor game | `league:read` |
+| Pocket Trails | your planned hikes and rides of the next week with the weather where the route starts (else at home), from setting off to back by; storms, rain, wind, heat or cold on the way | `trails:read` |
 | Pocket Movement | the weather where you are when you are away from your places (only the latest position) | `movement:read` |
 | Pocket Tasks | "Add as a task" on a piece of advice | `tasks:write` |
 | Pocket AI | the day in plain words — what to wear, whether to take an umbrella — and questions about the forecast; the Ask button on every page | inference |
 
-Other apps can read your weather (`weather:read`: each day's weather and your diary notes in Pocket Day's journal, the Weather card in Pocket AI's briefing, `pocket_weather_*` tools in Pocket Core) or add a place to follow (`weather:write`). They never see your plans: event titles, games, plants, vehicles and pets stay in Weather. Events on the bus: `weather.warning`, `weather.today`. Without Core every connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
+Other apps can read your weather (`weather:read`: each day's weather and your diary notes in Pocket Day's journal, the Weather card in Pocket AI's briefing, `pocket_weather_*` tools in Pocket Core) or add a place to follow (`weather:write`). They never see your plans: event titles, games, outings, plants, vehicles and pets stay in Weather. Events on the bus: `weather.warning`, `weather.today`. Without Core every connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
 
 ## Develop
 

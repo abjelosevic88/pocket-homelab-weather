@@ -151,6 +151,13 @@ func (s *Server) testDetail(ctx context.Context, a pocketApp, conn *siblingConn)
 		} else {
 			return ", but reading your games failed: " + err.Error()
 		}
+	case "trails":
+		today := store.Today()
+		if os, err := cl.Outings(ctx, today, store.AddDays(today, 7)); err == nil {
+			return fmt.Sprintf(", %d planned %s this week", len(os), plural(len(os), "outing", "outings"))
+		} else {
+			return ", but reading your outings failed: " + err.Error()
+		}
 	case "movement":
 		if p, err := cl.Now(ctx); err == nil {
 			if p == nil {

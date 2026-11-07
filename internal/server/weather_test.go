@@ -307,6 +307,41 @@ func TestDemoPlans(t *testing.T) {
 	if !strings.Contains(fmt.Sprint(linkUses()), "league [league:read]") {
 		t.Errorf("Weather does not ask for league:read: %v", linkUses())
 	}
+	// Pocket Trails: the hike at its route's start from setting off to back
+	// by, the ride without a route at home for the day; a planned outing of
+	// a past day is left out
+	outs, _ := p["outings"].([]any)
+	if len(outs) != 2 {
+		t.Fatalf("demo outings: %v", p["outings"])
+	}
+	for _, x := range outs {
+		o := x.(map[string]any)
+		switch o["id"] {
+		case "outing:41":
+			if o["all_day"] == true || !strings.HasSuffix(fmt.Sprint(o["start"]), "T08:30") || !strings.HasSuffix(fmt.Sprint(o["back"]), "T15:00") ||
+				o["outing"] != "14.2 km · 980 m up" || o["location"] != "Trebević from Bistrik" {
+				t.Errorf("hike: %v", o)
+			}
+		case "outing:42":
+			if o["place"] != p["place"] || o["back"] != nil || o["title"] != "Evening ride" {
+				t.Errorf("ride: %v", o)
+			}
+		default:
+			t.Errorf("unexpected outing %v", o)
+		}
+	}
+	if ta, _ := p["apps"].(map[string]any)["trails"].(map[string]any); ta["on"] != true || ta["count"] != float64(2) {
+		t.Errorf("trails app state: %v", ta)
+	}
+	if !strings.Contains(fmt.Sprint(linkUses()), "trails [trails:read]") {
+		t.Errorf("Weather does not ask for trails:read: %v", linkUses())
+	}
+	a.ok(a.alice, "PUT", "/api/v1/settings", map[string]any{"trails_weather": false})
+	off := a.ok(a.alice, "GET", "/api/v1/plans?fresh=1", nil)
+	if ta, _ := off["apps"].(map[string]any)["trails"].(map[string]any); ta["on"] != false || len(off["outings"].([]any)) != 0 {
+		t.Errorf("trails switched off: %v / %v", ta, off["outings"])
+	}
+	a.ok(a.alice, "PUT", "/api/v1/settings", map[string]any{"trails_weather": true})
 	if key == "" {
 		t.Fatalf("no tyre advice with a task in %s (month %s)", p["advice"], time.Now().Month())
 	}

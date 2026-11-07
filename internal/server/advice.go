@@ -20,14 +20,15 @@ import (
 // Calendar), the forecast for your coming trips (Pocket Travel), and advice
 // for what lives in the other apps: outdoor plants (Pocket Home), tyres and
 // the windscreen (Pocket Garage), dog walks (Pocket Pets), and your coming
-// games at their venue (Pocket League). Everything is worked out from the
-// home forecast unless an event, game or trip says where it is. Read on
-// request and kept ten minutes per person.
+// games at their venue (Pocket League), and your planned outings where
+// their route starts (Pocket Trails). Everything is worked out from the
+// home forecast unless an event, game, outing or trip says where it is.
+// Read on request and kept ten minutes per person.
 
 // Advice is one thing to do because of the weather.
 type Advice struct {
 	Key    string     `json:"key"` // stable, for done / hide / task
-	App    string     `json:"app"` // calendar | travel | home | garage | pets | league | weather
+	App    string     `json:"app"` // calendar | travel | home | garage | pets | league | trails | weather
 	Icon   string     `json:"icon"`
 	Level  string     `json:"level"` // info | warn
 	Day    string     `json:"day"`
@@ -66,6 +67,10 @@ type PlanEvent struct {
 	// a game from Pocket League
 	Players string `json:"players,omitempty"` // "3 in, 4 needed · you: in"
 	Indoor  bool   `json:"indoor,omitempty"`  // played inside: the weather is only for getting there
+	// an outing from Pocket Trails
+	Back    string `json:"back,omitempty"`    // back by "YYYY-MM-DDTHH:MM"
+	Outing  string `json:"outing,omitempty"`  // "12.4 km · 850 m up · planned"
+	Started bool   `json:"started,omitempty"` // under way now
 }
 
 // PlanTrip is a coming trip with its forecast (or last year's weather).
@@ -95,13 +100,14 @@ type AppState struct {
 
 // Plans is everything for the Plans page.
 type Plans struct {
-	Place  string              `json:"place"`
-	Events []PlanEvent         `json:"events"`
-	Games  []PlanEvent         `json:"games"`
-	Trips  []PlanTrip          `json:"trips"`
-	Advice []Advice            `json:"advice"`
-	Apps   map[string]AppState `json:"apps"`
-	Demo   bool                `json:"demo,omitempty"`
+	Place   string              `json:"place"`
+	Events  []PlanEvent         `json:"events"`
+	Games   []PlanEvent         `json:"games"`
+	Outings []PlanEvent         `json:"outings"`
+	Trips   []PlanTrip          `json:"trips"`
+	Advice  []Advice            `json:"advice"`
+	Apps    map[string]AppState `json:"apps"`
+	Demo    bool                `json:"demo,omitempty"`
 }
 
 func (s *Server) plans(ctx context.Context, uid int64, fresh bool) (*Plans, error) {
@@ -144,14 +150,14 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 	st, _ := s.store.GetSettings(ctx, uid)
 	home, err := s.store.HomeLocation(ctx, uid)
 	if err != nil {
-		return &Plans{Events: []PlanEvent{}, Games: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}}, nil
+		return &Plans{Events: []PlanEvent{}, Games: []PlanEvent{}, Outings: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}}, nil
 	}
 	f, _, err := s.forecastOf(ctx, home)
 	if err != nil {
 		return nil, err
 	}
 	src := s.planSource(ctx, uid)
-	p := &Plans{Place: home.Name, Events: []PlanEvent{}, Games: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}, Demo: src.demo}
+	p := &Plans{Place: home.Name, Events: []PlanEvent{}, Games: []PlanEvent{}, Outings: []PlanEvent{}, Trips: []PlanTrip{}, Advice: []Advice{}, Apps: map[string]AppState{}, Demo: src.demo}
 	u := unitsOf(st)
 	today := f.LocalDate()
 
@@ -276,6 +282,29 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 		state(appLeague, false, 0, nil)
 	}
 
+	// Pocket Trails: planned outings (and the one under way) at the start of
+	// their route, from setting off to when you plan to be back
+	if st.TrailsWeather {
+		outs, err := src.outings(ctx, store.AddDays(today, -1), store.AddDays(today, 7))
+		n := 0
+		for _, o := range outs {
+			pe := s.planOuting(ctx, st, home, f, o, today, u, s.siblingLink(ctx, uid, appTrails, fmt.Sprintf("/outings/%d", o.ID)))
+			if pe == nil {
+				continue
+			}
+			n++
+			p.Outings = append(p.Outings, *pe)
+			if len(pe.Flags) > 0 && pe.Note != "" {
+				day := pe.Start[:min(10, len(pe.Start))]
+				p.Advice = append(p.Advice, Advice{Key: fmt.Sprintf("outing:%d:%s", o.ID, day), App: "trails", Icon: "mountain", Level: "warn", Day: day,
+					Title: pe.Title + ", " + dayName(day, today) + whenClock(pe), Detail: pe.Note, Link: pe.Link})
+			}
+		}
+		state(appTrails, true, n, err)
+	} else {
+		state(appTrails, false, 0, nil)
+	}
+
 	// Pocket Movement and Tasks: only whether they answer
 	mv, _, mvDetail := s.connStatus(ctx, s.userOf(ctx, uid), st, appMovement)
 	p.Apps["movement"] = AppState{On: st.FollowMe, Connected: mv != modeOff && mvDetail == "", Detail: mvDetail}
@@ -290,6 +319,7 @@ func (s *Server) buildPlans(ctx context.Context, uid int64) (*Plans, error) {
 	})
 	sort.SliceStable(p.Events, func(a, b int) bool { return p.Events[a].Start < p.Events[b].Start })
 	sort.SliceStable(p.Games, func(a, b int) bool { return p.Games[a].Start < p.Games[b].Start })
+	sort.SliceStable(p.Outings, func(a, b int) bool { return p.Outings[a].Start < p.Outings[b].Start })
 	return p, nil
 }
 
@@ -318,6 +348,8 @@ type planSource struct {
 	// games are the coming games; outdoor says per group whether it plays
 	// outside (a group not in it counts as outside)
 	games func(ctx context.Context) (games []pocket.Game, outdoor map[int64]bool, err error)
+	// outings are the planned outings and the ones under way, by date
+	outings func(ctx context.Context, from, to string) ([]pocket.Outing, error)
 }
 
 // carInfo is a vehicle with when its tyres were last changed.
@@ -410,6 +442,13 @@ func (s *Server) planSource(ctx context.Context, uid int64) planSource {
 			}
 			return gs, outdoor, nil
 		},
+		outings: func(ctx context.Context, from, to string) ([]pocket.Outing, error) {
+			cl, err := conn(appTrails, scopeTrailsRead)
+			if err != nil {
+				return nil, err
+			}
+			return cl.Outings(ctx, from, to)
+		},
 	}
 }
 
@@ -442,6 +481,11 @@ func (s *Server) planEvent(ctx context.Context, uid int64, st store.Settings, ho
 // all-day one, with flags and a note when it will rain, storm, blow or be
 // very hot or cold then.
 func eventWeather(f *weather.Forecast, place string, e pocket.Event, st store.Settings, u units) *PlanEvent {
+	return eventWeatherFor(f, place, e, st, u, 6)
+}
+
+// eventWeatherFor is eventWeather looking at most maxHours of a timed event.
+func eventWeatherFor(f *weather.Forecast, place string, e pocket.Event, st store.Settings, u units, maxHours int) *PlanEvent {
 	pe := &PlanEvent{ID: e.ID, Title: firstNonEmpty(e.Title, "(no title)"), AllDay: e.AllDay, Location: e.Location, Place: place, Flags: []string{}}
 	loc := f.Location()
 	if e.AllDay || len(e.Start) == 10 {
@@ -476,7 +520,7 @@ func eventWeather(f *weather.Forecast, place string, e pocket.Event, st store.Se
 	// the worst of the hours it lasts (at most six)
 	var prob, gust, precip float64
 	storm := false
-	for t := start; t.Before(end) && t.Before(start.Add(6*time.Hour)); t = t.Add(time.Hour) {
+	for t := start; t.Before(end) && t.Before(start.Add(time.Duration(maxHours)*time.Hour)); t = t.Add(time.Hour) {
 		if hh := f.HourAt(t.In(loc).Format("2006-01-02T15:04")); hh != nil {
 			prob = math.Max(prob, val0(hh.PrecipProb))
 			gust = math.Max(gust, val0(hh.Gust))
@@ -664,6 +708,96 @@ func gamePlayers(g pocket.Game) string {
 		return who + " · you: " + g.MyAnswer
 	}
 	return who + " · you: not answered yet"
+}
+
+// ---- outings ----
+
+// planOuting puts the weather on one outing from Pocket Trails, within the
+// next week: where its route starts (else at home, as for a game without a
+// venue), from its start time to the time you plan to be back (else the
+// route's time, else four hours), looking at up to twelve hours. Without a
+// start time it gets the day's weather. Planned outings of past days and
+// outings already over are left out.
+func (s *Server) planOuting(ctx context.Context, st store.Settings, home *store.Location, hf *weather.Forecast, o pocket.Outing, today string, u units, link string) *PlanEvent {
+	if len(o.Date) < 10 || (o.Status != "planned" && o.Status != "out") {
+		return nil
+	}
+	d := o.Date[:10]
+	if d > store.AddDays(today, 7) || (o.Status == "planned" && d < today) {
+		return nil
+	}
+	f, place, routed := hf, home.Name, false
+	if o.StartLat != nil && o.StartLng != nil && (*o.StartLat != 0 || *o.StartLng != 0) {
+		if of, _, err := s.forecastAt(ctx, *o.StartLat, *o.StartLng); err == nil {
+			f, place, routed = of, firstNonEmpty(o.RouteName, "the start of the route"), true
+			if pl, err := s.placeName(ctx, *o.StartLat, *o.StartLng, st.Language); err == nil && pl != nil && pl.Name != "" {
+				place = pl.Name
+			}
+		}
+	}
+	loc := f.Location()
+	title := firstNonEmpty(o.Title, o.RouteName, "Outing")
+	location := ""
+	if routed && o.RouteName != "" && !strings.EqualFold(o.RouteName, place) {
+		location = o.RouteName
+	}
+	e := pocket.Event{ID: fmt.Sprintf("outing:%d", o.ID), Title: title, Location: location}
+	var start, end time.Time
+	timed := len(o.StartTime) >= 5
+	if timed {
+		var err error
+		if start, err = time.ParseInLocation("2006-01-02 15:04", d+" "+o.StartTime[:5], loc); err != nil {
+			timed = false
+		}
+	}
+	if timed {
+		end = start.Add(4 * time.Hour)
+		if o.Minutes > 0 {
+			end = start.Add(time.Duration(o.Minutes) * time.Minute)
+		}
+		if len(o.BackBy) >= 16 {
+			if b, err := time.ParseInLocation("2006-01-02T15:04", o.BackBy[:16], loc); err == nil && b.After(start) {
+				end = b
+			}
+		}
+		e.Start, e.End = start.Format(time.RFC3339), end.Format(time.RFC3339)
+		if f.HourAt(start.Format("2006-01-02T15:04")) == nil {
+			// further ahead than the hours: the day's weather
+			timed = false
+		}
+	}
+	if !timed {
+		e.AllDay, e.Start, e.End = true, d, store.AddDays(d, 1)
+	}
+	pe := eventWeatherFor(f, place, e, st, u, 12)
+	if pe == nil {
+		return nil
+	}
+	if !start.IsZero() && pe.AllDay {
+		pe.AllDay, pe.Start = false, start.Format("2006-01-02T15:04") // still at its time
+	}
+	if !end.IsZero() {
+		pe.Back = end.Format("2006-01-02T15:04")
+	}
+	pe.Link = link
+	pe.Started = o.Status == "out"
+	pe.Outing = outingFacts(o)
+	return pe
+}
+
+// outingFacts is "12.4 km · 850 m up · under way" (Trails keeps metres).
+func outingFacts(o pocket.Outing) string {
+	var parts []string
+	if o.DistanceM > 0 {
+		parts = append(parts, fmt.Sprintf("%.1f km", o.DistanceM/1000))
+	}
+	if o.GainM >= 1 {
+		parts = append(parts, fmt.Sprintf("%.0f m up", o.GainM))
+	}
+	if o.Status == "out" {
+		parts = append(parts, "under way")
+	}
+	return strings.Join(parts, " · ")
 }
 
 // ---- trips ----
@@ -1034,8 +1168,9 @@ func dogAdvice(dogs []pocket.Pet, f *weather.Forecast, today string, u units, li
 
 // demoPlanSource makes up the linked apps for DEMO_DATA (no Pocket Core):
 // a dentist and a football match, a trip to Vienna, two balcony plants, a
-// car without winter tyres, a dog and two games (tennis outside, futsal in
-// a hall) — so the Plans page can be seen.
+// car without winter tyres, a dog, two games (tennis outside, futsal in a
+// hall) and two outings (a hike on Trebević, a ride without a route) — so
+// the Plans page can be seen.
 func demoPlanSource() planSource {
 	now := time.Now()
 	day := func(n int, hh, mm int) time.Time {
@@ -1082,6 +1217,16 @@ func demoPlanSource() planSource {
 				{ID: 32, GroupID: 2, GroupName: "Friday 5-a-side", Emoji: "⚽", Status: "planned", StartsAt: at(4, 19), DurationMin: 60, VenueName: "Dvorana Mojmilo", In: 8, MinPlayers: 10, MyAnswer: "in"},
 				{ID: 33, GroupID: 3, GroupName: "Padel crew", Emoji: "🎾", Status: "voting"},
 			}, map[int64]bool{1: true, 2: false}, nil
+		},
+		outings: func(context.Context, string, string) ([]pocket.Outing, error) {
+			lat, lng := 43.8217, 18.4486
+			date := func(n int) string { return now.AddDate(0, 0, n).Format("2006-01-02") }
+			return []pocket.Outing{
+				{ID: 41, Title: "Trebević loop", Activity: "hike", Date: date(2), StartTime: "08:30", BackBy: date(2) + "T15:00", Status: "planned",
+					RouteName: "Trebević from Bistrik", DistanceM: 14200, GainM: 980, Minutes: 330, StartLat: &lat, StartLng: &lng},
+				{ID: 42, Title: "Evening ride", Activity: "bike", Date: date(3), Status: "planned"},
+				{ID: 43, Title: "Old hike", Activity: "hike", Date: date(-1), StartTime: "09:00", Status: "planned"},
+			}, nil
 		},
 	}
 }

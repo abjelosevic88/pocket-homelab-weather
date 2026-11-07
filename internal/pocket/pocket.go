@@ -1,8 +1,8 @@
 // Package pocket talks to sibling Pocket apps: Pocket Travel (trips),
 // Pocket Calendar (events), Pocket Home (outdoor plants), Pocket Garage
 // (vehicles and tyre changes), Pocket Pets (dogs to walk), Pocket League
-// (the coming games and where they are played), Pocket Movement
-// (where you are now) and Pocket Tasks (advice made into a task). Same
+// (the coming games and where they are played), Pocket Trails (planned
+// outings and where their route starts), Pocket Movement (where you are now) and Pocket Tasks (advice made into a task). Same
 // bearer-token JSON API everywhere.
 package pocket
 
@@ -281,6 +281,41 @@ func (c *Client) LeagueGroups(ctx context.Context) ([]LeagueGroup, error) {
 		return nil, err
 	}
 	return list[LeagueGroup](raw, "groups")
+}
+
+// ---------------- Pocket Trails ----------------
+
+// Outing is a planned (or started) outing in Pocket Trails. StartTime is
+// "HH:MM" (may be empty), BackBy "YYYY-MM-DDTHH:MM" (may be empty);
+// StartLat/StartLng are where its route starts (absent without a route).
+type Outing struct {
+	ID        int64    `json:"id"`
+	Title     string   `json:"title"`
+	Activity  string   `json:"activity"`
+	Date      string   `json:"date"`
+	StartTime string   `json:"start_time"`
+	BackBy    string   `json:"back_by"`
+	Status    string   `json:"status"` // planned | out | done | cancelled
+	RouteName string   `json:"route_name"`
+	DistanceM float64  `json:"distance_m"`
+	GainM     float64  `json:"gain_m"`
+	Minutes   int      `json:"minutes"`
+	StartLat  *float64 `json:"start_lat"`
+	StartLng  *float64 `json:"start_lng"`
+}
+
+// Outings lists the planned outings and the ones under way from one day to
+// another (inclusive).
+func (c *Client) Outings(ctx context.Context, from, to string) ([]Outing, error) {
+	q := url.Values{}
+	q.Set("status", "planned,out")
+	q.Set("from", from)
+	q.Set("to", to)
+	var raw json.RawMessage
+	if err := c.do(ctx, http.MethodGet, "/api/v1/outings", q, nil, &raw); err != nil {
+		return nil, err
+	}
+	return list[Outing](raw, "outings")
 }
 
 // ---------------- Pocket Home ----------------

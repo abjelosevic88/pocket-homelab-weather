@@ -163,6 +163,7 @@ type Settings struct {
 	GarageTyres     bool `json:"garage_tyres"`     // winter and summer tyres, frost on the windscreen
 	PetsWalks       bool `json:"pets_walks"`       // dog walks in heat, frost and thunder
 	LeagueWeather   bool `json:"league_weather"`   // your coming games with the weather at the venue
+	TrailsWeather   bool `json:"trails_weather"`   // your planned outings with the weather where the route starts
 
 	// AI: the day in plain words and questions about the forecast.
 	AIBrief bool `json:"ai_brief"` // write "the day in plain words" on the Today page

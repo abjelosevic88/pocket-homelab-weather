@@ -1,6 +1,7 @@
 // For your plans: what to do because of the weather (plants, tyres, the
-// dog, events, games, trips), your next days' events with their weather,
-// your coming games at their venue and your coming trips — from the Pocket apps you connected.
+// dog, events, games, outings, trips), your next days' events with their
+// weather, your coming games at their venue, your planned outings where the
+// route starts and your coming trips — from the Pocket apps you connected.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, V1 } from '../lib/api'
@@ -20,6 +21,7 @@ const APPS: { slug: string; name: string; icon: string; what: string }[] = [
   { slug: 'garage', name: 'Garage', icon: 'car', what: 'vehicles' },
   { slug: 'pets', name: 'Pets', icon: 'paw', what: 'dogs' },
   { slug: 'league', name: 'League', icon: 'trophy', what: 'games' },
+  { slug: 'trails', name: 'Trails', icon: 'mountain', what: 'outings' },
   { slug: 'tasks', name: 'Tasks', icon: 'check-square', what: '' },
 ]
 
@@ -43,9 +45,9 @@ export default function PlansPage() {
         <span className="grow" />
         <button type="button" className="btn ghost sm" onClick={refresh} disabled={loading}><Icon name="refresh" size={14} />Check again</button>
       </div>
-      {data.demo && <div className="callout info"><Icon name="info" size={15} /><div>Demo: these events, games, trips, plants, the car and the dog are made up so you can see the page. With Pocket Core they come from your own Pocket apps.</div></div>}
+      {data.demo && <div className="callout info"><Icon name="info" size={15} /><div>Demo: these events, games, outings, trips, plants, the car and the dog are made up so you can see the page. With Pocket Core they come from your own Pocket apps.</div></div>}
       {!anyOn && !data.demo && (
-        <div className="callout info"><Icon name="layers" size={15} /><div>Connect Pocket Calendar, Travel, Home, Garage, Pets or League and this page puts the weather on your events, games and trips, and says when to bring the balcony plants in, change the tyres or walk the dog. <Link to="/settings/apps">Settings → Connected apps</Link>{!coreOn && <CoreHint />}</div></div>
+        <div className="callout info"><Icon name="layers" size={15} /><div>Connect Pocket Calendar, Travel, Home, Garage, Pets, League or Trails and this page puts the weather on your events, games, outings and trips, and says when to bring the balcony plants in, change the tyres or walk the dog. <Link to="/settings/apps">Settings → Connected apps</Link>{!coreOn && <CoreHint />}</div></div>
       )}
 
       <Card title="What to do" flush sub={open.length ? undefined : 'Nothing the weather asks of you right now.'}
@@ -65,6 +67,13 @@ export default function PlansPage() {
         <Card title="Your games" flush sub={`The coming week's games from Pocket League with the weather at the venue (else ${data.place}) at their time.`}>
           {data.games?.length ? <div className="list">{data.games.map(e => <EventRow key={e.id} e={e} u={u} />)}</div>
             : <div className="pad"><Empty title="No games with a time in the next week" icon="trophy" /></div>}
+        </Card>
+      )}
+
+      {data.apps.trails?.on && (
+        <Card title="Your outings" flush sub={`The coming week's outings from Pocket Trails with the weather where the route starts (else ${data.place}), from setting off to when you plan to be back.`}>
+          {data.outings?.length ? <div className="list">{data.outings.map(e => <EventRow key={e.id} e={e} u={u} />)}</div>
+            : <div className="pad"><Empty title="No outings planned for the next week" icon="mountain" /></div>}
         </Card>
       )}
 
@@ -88,7 +97,7 @@ function AppChip({ a, st }: { a: typeof APPS[number]; st?: AppState }) {
   )
 }
 
-const APP_NAME: Record<string, string> = { calendar: 'Pocket Calendar', travel: 'Pocket Travel', home: 'Pocket Home', garage: 'Pocket Garage', pets: 'Pocket Pets', league: 'Pocket League' }
+const APP_NAME: Record<string, string> = { calendar: 'Pocket Calendar', travel: 'Pocket Travel', home: 'Pocket Home', garage: 'Pocket Garage', pets: 'Pocket Pets', league: 'Pocket League', trails: 'Pocket Trails' }
 
 function AdviceRow({ a, tasks }: { a: Advice; tasks?: AppState; today?: string }) {
   const { toast } = useToast()
@@ -128,7 +137,8 @@ function AdviceRow({ a, tasks }: { a: Advice; tasks?: AppState; today?: string }
 const FLAG: Record<string, [string, string]> = { rain: ['umbrella', 'Rain'], storm: ['zap', 'Thunder'], wind: ['wind', 'Windy'], heat: ['thermometer', 'Hot'], cold: ['snowflake', 'Cold'], snow: ['snowflake', 'Snow'] }
 
 function EventRow({ e, u }: { e: PlanEvent; u: Units }) {
-  const when = e.all_day ? `${weekday(e.start)} · all day` : `${weekday(e.start.slice(0, 10))} ${hourOf(e.start)}`
+  const back = e.back ? (e.back.slice(0, 10) === e.start.slice(0, 10) ? hourOf(e.back) : `${weekday(e.back.slice(0, 10))} ${hourOf(e.back)}`) : ''
+  const when = (e.all_day ? `${weekday(e.start)} · all day` : `${weekday(e.start.slice(0, 10))} ${hourOf(e.start)}`) + (back ? ` – back by ${back}` : '')
   return (
     <div className={`wx-event ${e.flags.length ? 'flagged' : ''}`}>
       <WeatherIcon condition={e.condition} size={30} />
@@ -136,6 +146,7 @@ function EventRow({ e, u }: { e: PlanEvent; u: Units }) {
         <div className="row-title">{e.link ? <a href={e.link} target="_blank" rel="noreferrer">{e.title}</a> : e.title}</div>
         <div className="muted small">{when} · {e.place}{e.location && !e.location.toLowerCase().includes(e.place.toLowerCase()) ? ` (${e.location})` : ''}{e.indoor ? ' · indoors' : ''}</div>
         {e.players && <div className="muted small">{e.players}</div>}
+        {e.outing && <div className="muted small">{e.outing}</div>}
         {e.note && <div className="small wx-event-note">{e.note}</div>}
       </div>
       <div className="wx-event-wx">

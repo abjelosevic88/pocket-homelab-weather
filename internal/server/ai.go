@@ -135,6 +135,16 @@ func (s *Server) weatherFacts(ctx context.Context, uid int64, st store.Settings,
 					fmt.Fprintf(&b, "- %s %s at %s: %s, %s, rain chance %.0f %%; %s\n", e.Start, e.Title, where, weather.Describe(e.Code, true), u.temp(val0(e.Temp)), val0(e.Prob), e.Players)
 				}
 			}
+			if len(p.Outings) > 0 {
+				b.WriteString("Their planned outings (Pocket Trails), with the weather where the route starts:\n")
+				for _, e := range p.Outings {
+					back := ""
+					if e.Back != "" {
+						back = ", back by " + e.Back
+					}
+					fmt.Fprintf(&b, "- %s%s %s at %s: %s, %s, rain chance %.0f %%; %s\n", e.Start, back, e.Title, e.Place, weather.Describe(e.Code, true), u.temp(val0(e.Temp)), val0(e.Prob), e.Outing)
+				}
+			}
 			for _, t := range p.Trips {
 				fmt.Fprintf(&b, "Trip %s to %s, %s to %s: %s\n", t.Name, t.Place, t.Start, t.End, t.Summary)
 			}

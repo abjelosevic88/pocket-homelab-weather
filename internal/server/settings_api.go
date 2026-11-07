@@ -46,9 +46,9 @@ func (s *Server) publicSettings(ctx context.Context, u *store.User, st store.Set
 		"notify_morning": st.NotifyMorning, "notify_warnings": st.NotifyWarnings, "quiet_hours": st.QuietHours, "notify_hour": st.NotifyHour,
 		"notify_url": st.NotifyURL, "notify_format": st.NotifyFormat, "notify_configured": st.NotifyURL != "",
 		"calendar_weather": st.CalendarWeather, "travel_weather": st.TravelWeather, "home_plants": st.HomePlants, "garage_tyres": st.GarageTyres, "pets_walks": st.PetsWalks,
-		"league_weather": st.LeagueWeather,
-		"ai_brief":       st.AIBrief,
-		"ai_provider":    st.AIProvider, "ai_pocket_model": st.AIPocketModel, "openai_api_key": mask(st.OpenAIKey), "openai_model": st.OpenAIModel, "openai_base_url": st.OpenAIBaseURL,
+		"league_weather": st.LeagueWeather, "trails_weather": st.TrailsWeather,
+		"ai_brief":    st.AIBrief,
+		"ai_provider": st.AIProvider, "ai_pocket_model": st.AIPocketModel, "openai_api_key": mask(st.OpenAIKey), "openai_model": st.OpenAIModel, "openai_base_url": st.OpenAIBaseURL,
 		"setup_complete": st.SetupComplete, "base_url": s.cfg.BaseURL,
 	}
 	for _, a := range pocketApps {
@@ -179,7 +179,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		"warn_rain": &cur.WarnRain, "warn_snow": &cur.WarnSnow, "warn_storm": &cur.WarnStorm, "warn_uv": &cur.WarnUV, "warn_pollen": &cur.WarnPollen, "warn_air": &cur.WarnAir,
 		"notify_morning": &cur.NotifyMorning, "notify_warnings": &cur.NotifyWarnings, "quiet_hours": &cur.QuietHours,
 		"calendar_weather": &cur.CalendarWeather, "travel_weather": &cur.TravelWeather, "home_plants": &cur.HomePlants, "garage_tyres": &cur.GarageTyres,
-		"pets_walks": &cur.PetsWalks, "league_weather": &cur.LeagueWeather, "ai_brief": &cur.AIBrief} {
+		"pets_walks": &cur.PetsWalks, "league_weather": &cur.LeagueWeather, "trails_weather": &cur.TrailsWeather, "ai_brief": &cur.AIBrief} {
 		if v, ok := raw[k].(bool); ok && keys[k] {
 			*dst = v
 		}
