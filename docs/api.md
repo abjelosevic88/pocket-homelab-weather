@@ -41,4 +41,6 @@ Everything is under `/api/v1`, JSON in and out, with a session cookie, a persona
 
 Link tokens: `weather:read` covers the reads above except `/plans` (it carries what other apps told Weather); `weather:write` covers `POST /locations` and `PUT`/`DELETE /locations/{id}` of places that app added.
 
+Pocket Move can copy your places and weather diary out and bring them in: `move:export` reads `GET /export.json` and `GET /export.csv`, `move:import` posts `POST /import` (adds places and days you do not have yet; your home and your own notes stay as they are; a second run adds nothing). `GET /pocket/portable` describes both.
+
 Events on the Core bus: `weather.warning` (a new or worse warning: `kind`, `level`, `day`, `starts_at`, `ends_at`, `title`, `detail`, `place`), `weather.today` (the morning: `place`, `text`, `t_min`, `t_max`, `condition`, `warnings`).

@@ -44,6 +44,10 @@ func (s *Server) importDoc(ctx context.Context, uid int64, doc exportDoc) (map[s
 		return nil, err
 	}
 	ids := map[int64]int64{} // id in the file → id here
+	hasHome := false
+	for _, l := range have {
+		hasHome = hasHome || (l.IsHome && l.Source != "here")
+	}
 	for _, in := range doc.Locations {
 		if in.Source == "here" || in.Name == "" {
 			continue
@@ -62,15 +66,14 @@ func (s *Server) importDoc(ctx context.Context, uid int64, doc exportDoc) (map[s
 		old := in.ID
 		l := in
 		l.ID, l.UserID, l.Sort = 0, uid, 0
+		// The file's home becomes home only when there is none here yet.
+		l.IsHome = in.IsHome && !hasHome
+		hasHome = hasHome || l.IsHome
 		if l.Source != "" && l.Source != "import" {
 			l.Source, l.SourceRef = "import", ""
 		}
 		if err := s.store.CreateLocation(ctx, &l); err != nil {
 			return nil, err
-		}
-		if in.IsHome {
-			l.IsHome = true
-			_ = s.store.UpdateLocation(ctx, &l)
 		}
 		have = append(have, l)
 		ids[old] = l.ID
@@ -79,6 +82,10 @@ func (s *Server) importDoc(ctx context.Context, uid int64, doc exportDoc) (map[s
 	for _, d := range doc.Days {
 		to, ok := ids[d.LocationID]
 		if !ok {
+			continue
+		}
+		// A day already in the diary keeps what is there (and its note).
+		if _, err := s.store.GetDay(ctx, uid, to, d.Date); err == nil {
 			continue
 		}
 		d.LocationID = to
