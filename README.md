@@ -79,6 +79,8 @@ Set `CORE_URL` and `CORE_REGISTRATION_KEY` and Weather joins the box: people sig
 
 Other apps can read your weather (`weather:read`: each day's weather and your diary notes in Pocket Day's journal, the Weather card in Pocket AI's briefing, `pocket_weather_*` tools in Pocket Core) or add a place to follow (`weather:write`). They never see your plans: event titles, games, outings, plants, vehicles and pets stay in Weather. Events on the bus: `weather.warning`, `weather.today`. Without Core every connection can be made directly with a URL and a token; the Core-only choices stay visible, greyed out.
 
+Pocket Search, Pocket Day and Pocket Hub find Weather on their own, with nothing to set up in any of them: your saved places turn up in Search with the weather now (`!weather mostar`, `!forecast`), and so do your warnings and the notes in your weather diary; Hub shows a "Weather" widget with now and today at home, the warnings that are on, and your other places (or the coming hours when you have one place); the day at home, that day's warnings and your diary note are offered to the journal (Pocket Day keeps its own reading through `weather:read` for now); and a quick line typed in Hub can go into today's weather diary, under what you already wrote there. None of these goes to Open-Meteo: they show the forecast Weather already keeps (renewed every 30 minutes), with the time it is from when it is older than an hour. The routes are in [docs/api.md](docs/api.md#pocket-search-pocket-day-and-pocket-hub).
+
 ## Develop
 
 ```sh

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -236,6 +237,58 @@ func (s *Store) SetDayNote(ctx context.Context, uid, loc int64, date, note strin
 		return ErrNotFound
 	}
 	return nil
+}
+
+// ErrNoteFull is a diary note that has no room for one more line.
+var ErrNoteFull = errors.New("the note for that day is full")
+
+// AppendDayNote adds a line under the person's note for a diary day (the day
+// must be in the diary); what is there stays. The note keeps to max bytes.
+// also runs in the same transaction (a capture's receipt). It returns the note.
+func (s *Store) AppendDayNote(ctx context.Context, uid, loc int64, date, line string, max int, also func(*sql.Tx) error) (string, error) {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	var note string
+	if err := tx.QueryRowContext(ctx, `SELECT note FROM days WHERE user_id = ? AND location_id = ? AND date = ?`, uid, loc, date).Scan(&note); err != nil {
+		return "", notFound(err)
+	}
+	if note = strings.TrimSpace(note); note != "" {
+		note += "\n"
+	}
+	note += strings.TrimSpace(line)
+	if len(note) > max {
+		return "", ErrNoteFull
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE days SET note = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE user_id = ? AND location_id = ? AND date = ?`, note, uid, loc, date); err != nil {
+		return "", err
+	}
+	if also != nil {
+		if err := also(tx); err != nil {
+			return "", err
+		}
+	}
+	return note, tx.Commit()
+}
+
+// NotedDays returns the diary days the person wrote a note for, newest first.
+func (s *Store) NotedDays(ctx context.Context, uid int64) ([]DayRecord, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+dayCols+` FROM days WHERE user_id = ? AND note <> '' ORDER BY date DESC, location_id`, uid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []DayRecord{}
+	for rows.Next() {
+		d, err := scanDay(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *d)
+	}
+	return out, rows.Err()
 }
 
 // GetDay returns one diary day.

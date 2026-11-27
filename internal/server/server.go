@@ -216,10 +216,12 @@ func (s *Server) manifest() core.Manifest {
 		Description: "The weather for your places and where you are: now, 48 hours and 10 days, air quality and pollen, and warnings for frost, storms, heavy rain, heat and strong sun. It puts the weather on your events and trips, says when to bring the balcony plants in, change the tyres or walk the dog, keeps a diary of every day, and explains the day in plain words with Pocket AI.",
 		Icon:        "/favicon.svg", Version: Version,
 		URL: s.cfg.CoreAppURL, PublicURL: s.cfg.BaseURL, HealthPath: "/healthz", EnvPrefix: "WEATHER",
-		Publishes: eventTopics,
-		Offers:    linkOffers,
-		Portable:  portable,
-		Uses:      append(linkUses(), core.InferenceUse()),
+		Publishes:    eventTopics,
+		Offers:       linkOffers,
+		Portable:     portable,
+		Category:     "Places",
+		Capabilities: capabilities,
+		Uses:         append(linkUses(), core.InferenceUse()),
 	}
 	if s.cfg.BaseURL != "" {
 		m.OIDC = &core.OIDCRequest{RedirectURIs: []string{s.oidcCallbackURL()}}

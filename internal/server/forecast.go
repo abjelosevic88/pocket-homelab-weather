@@ -84,6 +84,22 @@ func cached[T any](ctx context.Context, s *Server, key string, ttl time.Duration
 	return v, false, nil
 }
 
+// stored is the last copy kept under a key, whatever its age, and when it
+// was fetched; it never fetches (ok false when there is no copy).
+func stored[T any](ctx context.Context, s *Server, key string) (T, time.Time, bool) {
+	var v T
+	raw, at, ok := s.store.CacheGet(ctx, key)
+	if !ok {
+		return v, time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339Nano, at)
+	if err != nil || json.Unmarshal([]byte(raw), &v) != nil {
+		var zero T
+		return zero, time.Time{}, false
+	}
+	return v, t, true
+}
+
 // forecastAt is the forecast for a spot.
 func (s *Server) forecastAt(ctx context.Context, lat, lon float64) (*weather.Forecast, bool, error) {
 	return cached(ctx, s, "fc:"+spot(lat, lon), forecastTTL, func() (*weather.Forecast, error) { return s.wx.Forecast(ctx, lat, lon) })
